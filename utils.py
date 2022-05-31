@@ -19,19 +19,20 @@ def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):
 
 
 def clear_plot(house_area, house_level, STARTY, ENDY):
-    GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], ENDY - 1, house_area[1, 1], blocks = 'air')
+    GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], 150, house_area[1, 1], blocks = 'air')
     GEO.placeVolume(house_area[0, 0], STARTY, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'dirt', replace = ['minecraft:air', 'minecraft:water', 'minecraft:lava'])
 
 
-def pick_plot(house_size, height_map, STARTX, STARTZ, x_start, y_start, z_start):
+def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, x_start, y_start, z_start):
     convolution_array = np.ones(house_size)
     look_area = np.array([[max(STARTX, x_start - house_size[0] + 1), min(STARTX + height_map.shape[0], x_start + house_size[0] - 1 + 1)], [max(STARTZ, z_start - house_size[1] + 1), min(STARTZ + height_map.shape[1], z_start + house_size[1] - 1 + 1)]])
     look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
-    look_area_height_map_gradient = look_area_height_map - y_start
-    print(look_area_height_map_gradient.shape)
-    look_area_height_map_convolved = convolve2d(np.abs(look_area_height_map_gradient), convolution_array, mode = 'valid')
+    look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
+    look_area_height_map_gradient = np.abs(look_area_height_map - y_start)
+    look_area_height_map_convolved = convolve2d(look_area_height_map_gradient, convolution_array, mode = 'valid')
 
     convolved_index = np.unravel_index(np.argmin(look_area_height_map_convolved), look_area_height_map_convolved.shape)
+    print(look_area_height_map_gradient, look_area_height_map_convolved, convolved_index)
     house_area = np.array([[look_area[0, 0] + convolved_index[0], look_area[0, 0] + convolved_index[0] + house_size[0] - 1], [look_area[1, 0] + convolved_index[1], look_area[1, 0] + convolved_index[1] + house_size[1] - 1]])
     print('house area: ', house_area)
     house_level = y_start
@@ -65,7 +66,7 @@ def get_path_cost(point_x, point_z, differential, edge_costs):
             return edge_costs[1][point_x, point_z - 1]
 
 
-def get_distance_socre_map(sea_map, surface_map, house_area, STARTX, STARTZ, ENDX, ENDZ):
+def get_distance_socre_map(sea_map, surface_map, house_areas, STARTX, STARTZ, ENDX, ENDZ):
     ## score map
     score_map = np.full(sea_map.shape, fill_value = -1)
     seafaring_cost = 5
@@ -81,17 +82,18 @@ def get_distance_socre_map(sea_map, surface_map, house_area, STARTX, STARTZ, END
 
     edge_costs = [surface_edge_0, surface_edge_1]
     ### run dijkstra
-    score_map[house_area[0, 0] - STARTX + 1: house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ + 1: house_area[1, 1] - STARTZ + 1] = 0
-    #!! assumption: all buildings are rectangular
-    #### initialise point stack
-    point_stack = []
-    for x_house in range(house_area[0, 0], house_area[0, 1] + 1):
-        if x_house == house_area[0, 0] or x_house == house_area[0, 1]:
-            for y_house in range(house_area[1, 0], house_area[1, 1] + 1):
-                point_stack.append((0, x_house, y_house))
-        else:
-            point_stack.append((0, x_house, house_area[1, 0]))
-            point_stack.append((0, x_house, house_area[1, 1]))
+    for house_area in house_areas:
+        score_map[house_area[0, 0] - STARTX + 1: house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ + 1: house_area[1, 1] - STARTZ + 1] = 0
+        #!! assumption: all buildings are rectangular
+        #### initialise point stack
+        point_stack = []
+        for x_house in range(house_area[0, 0], house_area[0, 1] + 1):
+            if x_house == house_area[0, 0] or x_house == house_area[0, 1]:
+                for y_house in range(house_area[1, 0], house_area[1, 1] + 1):
+                    point_stack.append((0, x_house, y_house))
+            else:
+                point_stack.append((0, x_house, house_area[1, 0]))
+                point_stack.append((0, x_house, house_area[1, 1]))
     heapq.heapify(point_stack)
     #### pop from point stack
     while len(point_stack) > 0:
@@ -110,3 +112,5 @@ def get_distance_socre_map(sea_map, surface_map, house_area, STARTX, STARTZ, END
                     heapq.heappush(point_stack, new_point)
                 heapq.heapify(point_stack)
                 score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] = new_cost
+
+    return score_map
