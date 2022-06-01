@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 
@@ -18,6 +18,7 @@ height_map = np.minimum(WORLDSLICE.heightmaps['OCEAN_FLOOR'], WORLDSLICE.heightm
 surface_map = WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES']
 sea_map = get_geography_map(WORLDSLICE)
 house_areas = []
+roads = []
 house_areas_map = np.zeros(sea_map.shape)
 
 
@@ -45,9 +46,9 @@ print("Starter house built: ", time_starter_house - time_start)
 house_areas.append(house_area)
 sea_build_cost = 100
 ## iterate over settlement number
-for i in range(1):
-    flat_distance_score_map, _ = get_distance_score_map(sea_map, np.zeros(surface_map.shape), house_areas, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 0)
-    distance_score_map, distance_score_paths = get_distance_score_map(sea_map, surface_map, house_areas, STARTX, STARTZ, ENDX, ENDZ)
+for i in range(3):
+    flat_distance_score_map, _ = get_distance_score_map(sea_map, np.zeros(surface_map.shape), house_areas, [], STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 0)
+    distance_score_map, distance_score_paths = get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ)
     build_limits = np.where(flat_distance_score_map >= 15, distance_score_map, 9999)
     build_score_map = build_limits + sea_build_cost * (np.ones(sea_map.shape) - sea_map)
 
@@ -76,6 +77,11 @@ for i in range(1):
     house_areas_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
 
     ### build roads
+
+    for point in distance_score_paths[next_building_location]:
+        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
+            build_road(point, STARTY, ENDY)
+            roads.append(point)
 
     ### display elapsed time
     time_house = time.time()

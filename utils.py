@@ -23,6 +23,10 @@ def clear_plot(house_area, house_level, STARTY, ENDY):
     GEO.placeVolume(house_area[0, 0], STARTY, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'dirt', replace = ['minecraft:air', 'minecraft:water', 'minecraft:lava', 'minecraft:tallgrass', 'minecraft:leaves'])
 
 
+def build_road(road_point, STARTY, ENDY):
+    GEO.placeVolume(road_point[0], STARTY, road_point[1], road_point[0], 90, road_point[1], blocks = 'diamond_block')
+
+
 def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start):
     convolution_array = np.ones(house_size)
     look_area = np.array([[max(STARTX, x_start - house_size[0] + 1), min(ENDX, x_start + house_size[0])], [max(STARTZ, z_start - house_size[1] + 1), min(ENDZ, z_start + house_size[1])]])
@@ -65,7 +69,7 @@ def get_path_cost(point_x, point_z, differential, edge_costs):
             return edge_costs[1][point_x, point_z - 1]
 
 
-def get_distance_score_map(sea_map, surface_map, house_areas, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1):
+def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1):
     ## score map
     score_map = np.full(sea_map.shape, fill_value = -1)
 
@@ -80,11 +84,11 @@ def get_distance_score_map(sea_map, surface_map, house_areas, STARTX, STARTZ, EN
     edge_costs = [surface_edge_0, surface_edge_1]
     ### run dijkstra
     paths = {}
+    #### initialise point stack
+    point_stack = []
     for house_area in house_areas:
-        score_map[house_area[0, 0] - STARTX + 1: house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ + 1: house_area[1, 1] - STARTZ + 1] = 0
+        score_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1] = 0
         #!! assumption: all buildings are rectangular
-        #### initialise point stack
-        point_stack = []
         for x_house in range(house_area[0, 0], house_area[0, 1] + 1):
             if x_house == house_area[0, 0] or x_house == house_area[0, 1]:
                 for y_house in range(house_area[1, 0], house_area[1, 1] + 1):
@@ -92,6 +96,9 @@ def get_distance_score_map(sea_map, surface_map, house_areas, STARTX, STARTZ, EN
             else:
                 point_stack.append((0, x_house, house_area[1, 0], []))
                 point_stack.append((0, x_house, house_area[1, 1], []))
+    for road_point in roads:
+        score_map[road_point[0] - STARTX, road_point[1] - STARTZ] = 0
+        point_stack.append((0, road_point[0], road_point[1], []))
     heapq.heapify(point_stack)
     #### pop from point stack
     while len(point_stack) > 0:
