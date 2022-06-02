@@ -19,12 +19,13 @@ def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):
 
 
 def clear_plot(house_area, house_level, STARTY, ENDY):
-    GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], 150, house_area[1, 1], blocks = 'gold_block')
+    GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], 150, house_area[1, 1], blocks = 'air')
     GEO.placeVolume(house_area[0, 0], STARTY, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'dirt', replace = ['minecraft:air', 'minecraft:water', 'minecraft:lava', 'minecraft:tallgrass', 'minecraft:leaves'])
 
 
-def build_road(road_point, STARTY, ENDY):
-    GEO.placeVolume(road_point[0], STARTY, road_point[1], road_point[0], 90, road_point[1], blocks = 'diamond_block')
+def build_road(road_point, road_level, STARTY, ENDY):
+    # GEO.placeVolume(road_point[0], road_level + 1, road_point[1], road_point[0], ENDY, road_point[1], blocks = 'air')
+    GEO.placeVolume(road_point[0], road_level - 1, road_point[1], road_point[0], road_level - 1, road_point[1], blocks = 'diamond_block')
 
 
 def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start):
@@ -127,3 +128,7 @@ def verify_build_area(house_area, house_map, STARTX, STARTZ):
         return False
     else:
         return True
+
+
+def build_house(house_area, orientation, house_id):
+    

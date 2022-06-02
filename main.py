@@ -80,7 +80,8 @@ for i in range(3):
 
     for point in distance_score_paths[next_building_location]:
         if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
-            build_road(point, STARTY, ENDY)
+            road_level = height_map[point[0] - STARTX, point[1] - STARTZ]
+            build_road(point, road_level, STARTY, ENDY)
             roads.append(point)
 
     ### display elapsed time
