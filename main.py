@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 
@@ -31,7 +31,7 @@ house_area, house_level = pick_plot(house_size, height_map, house_areas_map, STA
 ## clear plot
 clear_plot(house_area, house_level, STARTY, ENDY)
 ## build house
-
+build_house(house_area, house_level, [0, 0], 'starter_dirt')
 ## update maps
 sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
 height_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = house_level
@@ -68,6 +68,7 @@ for i in range(3):
     house_areas.append(house_area)
 
     ### build house
+    build_house(house_area, house_level, [0, 0], 'starter_dirt')
 
     ### update maps
 

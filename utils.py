@@ -3,6 +3,7 @@ import numpy as np
 import heapq
 from gdpc import geometry as GEO
 from scipy.signal import convolve2d
+from blueprints import house
 
 
 def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):
@@ -130,5 +131,11 @@ def verify_build_area(house_area, house_map, STARTX, STARTZ):
         return True
 
 
-def build_house(house_area, orientation, house_id):
-    
+# orientation: [0/1, 0/1/2/3]
+def build_house(house_area, house_level, orientation, house_id):
+    house_object = house(house_id)
+    blueprint = house_object.get_blueprint(house_area, house_level, orientation)
+
+    for block_key in blueprint:
+        point_list = blueprint[block_key]
+        GEO.placeFromList(point_list, block_key)

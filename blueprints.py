@@ -8,7 +8,7 @@ class house:
         self.centre_line = (self.sizes[0] - 1) / 2
 
     # orientation: [0/1, 0/1/2/3]
-    def get_blueprint(self, house_area, orientation):
+    def get_blueprint(self, house_area, house_level, orientation):
         # face positive z direction
         front = orientation[1]
         back = (orientation[1] + 2) % 4
@@ -19,14 +19,24 @@ class house:
         assert (house_area[0, 1] - house_area[0, 0] + 1) == self.sizes[orientation[1] % 2]
         assert (house_area[1, 1] - house_area[1, 0] + 1) == self.sizes[(orientation[1] - 1) % 2]
 
-        # spin blueprint
-        blueprint = self.blueprint       
+        # move blueprint in place and spin blueprint
+        blueprint = move_blueprint(self.blueprint, house_area, house_level)
         if orientation[0] == 1:
             blueprint = spin_mirror(blueprint, self.centre_line)
         if orientation[1] > 0:
             blueprint = spin_counterclockwise(blueprint, self.centre_point, orientation[1])
 
         return blueprint
+
+
+def move_blueprint(blueprint, house_area, house_level):
+    new_blueprint = {}
+    for block_key in blueprint:
+        point_list = []
+        for point in blueprint[block_key]:
+            point_list.append((point[0] + house_area[0, 0], point[1] + house_level, point[2] + house_area[1, 0]))
+        new_blueprint[block_key] = point_list
+    return new_blueprint
 
 
 def spin_mirror(blueprint, centre_line):
@@ -69,8 +79,9 @@ ids = ['starter_dirt']
 # x, y, z
 blueprints = {
     'starter_dirt': {
-        'dirt': [(1, 0, 1), (2, 0, 1), (3, 0, 1), (4, 0, 1), (5, 0, 1), (6, 0, 1), (7, 0, 1), (1, 1, 1), (2, 1, 1), (3, 1, 1), (4, 1, 1), (5, 1, 1), (6, 1, 1), (7, 0, 2), (7, 0, 3), (7, 0, 4), (7, 0, 5), (7, 0, 6), (7, 0, 7), (7, 1, 2), (7, 1, 3), (7, 1, 4), (7, 1, 5), (7, 1, 6), (7, 1, 7), (1, 0, 7), (2, 0, 7), (3, 0, 7), (4, 0, 7), (5, 0, 7), (6, 0, 7), (1, 1, 7), (2, 1, 7), (3, 1, 7), (4, 1, 7), (5, 1, 7), (6, 1, 7), (1, 0, 3), (1, 0, 4), (1, 0, 5), (1, 0, 6), (1, 1, 3), (1, 1, 4), (1, 1, 5), (1, 1, 6)],
-        'wooden_door': [(1, 0, 2), (1, 1, 2)]
+        'dirt': [(1, 0, 1), (1, 0, 2), (3, 0, 1), (4, 0, 1), (5, 0, 1), (6, 0, 1), (7, 0, 1), (1, 1, 1), (1, 1, 2), (3, 1, 1), (4, 1, 1), (5, 1, 1), (6, 1, 1), (7, 0, 2), (7, 0, 3), (7, 0, 4), (7, 0, 5), (7, 0, 6), (7, 0, 7), (7, 1, 2), (7, 1, 3), (7, 1, 4), (7, 1, 5), (7, 1, 6), (7, 1, 7), (1, 0, 7), (2, 0, 7), (3, 0, 7), (4, 0, 7), (5, 0, 7), (6, 0, 7), (1, 1, 7), (2, 1, 7), (3, 1, 7), (4, 1, 7), (5, 1, 7), (6, 1, 7), (1, 0, 3), (1, 0, 4), (1, 0, 5), (1, 0, 6), (1, 1, 3), (1, 1, 4), (1, 1, 5), (1, 1, 6), (7, 1, 1)],
+        'oak_door[half=lower]': [(2, 0, 1)], 
+        'oak_door[half=upper]': [(2, 1, 1)]
     }
 }
 
