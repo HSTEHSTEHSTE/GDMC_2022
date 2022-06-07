@@ -1,5 +1,6 @@
 from gdpc.direct_interface import getBlock, runCommand
 import requests
+import pprint
 from requests.exceptions import ConnectionError
 
 
@@ -24,9 +25,10 @@ def load_as_blueprint(house_area, house_level, house_level_max):
                 
                 if block != 'air[]':
                     if block in blueprint:
-                        blueprint[block].append((x, y, z))
+                        blueprint[block].append((x - house_area[0, 0], y - house_level, z - house_area[1, 0]))
                     else:
-                        blueprint[block] = [(x, y, z)]
+                        blueprint[block] = [(x - house_area[0, 0], y - house_level, z - house_area[1, 0])]
 
-    print(blueprint)
+    pp = pprint.PrettyPrinter(depth = 4, width = 200, compact = True)
+    pp.pprint(blueprint)
     return blueprint

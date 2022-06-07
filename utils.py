@@ -3,7 +3,28 @@ import numpy as np
 import heapq
 from gdpc import geometry as GEO
 from scipy.signal import convolve2d
-from blueprints import house
+from blueprints import house, lookup_table
+from gdpc import direct_interface as di
+
+
+def get_geography_map(world_slice, STARTX, STARTZ):
+    sea_map = (world_slice.heightmaps['OCEAN_FLOOR'] == world_slice.heightmaps['MOTION_BLOCKING_NO_LEAVES']).astype(int)
+    # 1: land, 0: sea
+
+    # true_height_map = np.zeros(sea_map.shape)
+    # for x_index in range(0, true_height_map.shape[0]):
+    #     print(x_index)
+    #     for z_index in range(0, true_height_map.shape[1]):
+    #         print(z_index)
+    #         for y_index in range(world_slice.heightmaps['MOTION_BLOCKING_NO_LEAVES'][x_index, z_index] - 1, -1, -1):
+    #             block_index = di.getBlock(x_index + STARTX, y_index, z_index + STARTZ)
+                
+    #             for foundation_category in lookup_table['landscape_foundations']:
+    #                 if block_index in lookup_table['landscape_foundations'][foundation_category]:
+    #                     true_height_map[x_index, z_index] = y_index + 1
+    #                     break
+
+    return sea_map
 
 
 def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):

@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 
@@ -9,14 +9,15 @@ STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(dx = 128, dz =
 print("Build area: ", STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ)
 
 WORLDSLICE = WL.WorldSlice(STARTX, STARTZ, ENDX + 1, ENDZ + 1)
-def get_geography_map(world_slice):
-    sea_map = (world_slice.heightmaps['OCEAN_FLOOR'] == world_slice.heightmaps['MOTION_BLOCKING_NO_LEAVES']).astype(int)
-    # 1: land, 0: sea
-    return sea_map
 
 height_map = np.minimum(WORLDSLICE.heightmaps['OCEAN_FLOOR'], WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES'])
+
+
+
 surface_map = WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES']
-sea_map = get_geography_map(WORLDSLICE)
+sea_map = get_geography_map(WORLDSLICE, STARTX, STARTZ)
+time_read_map = time.time()
+print("Map read: ", time_read_map - time_start)
 house_areas = []
 roads = []
 house_areas_map = np.zeros(sea_map.shape)
