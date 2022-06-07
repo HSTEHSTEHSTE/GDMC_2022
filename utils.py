@@ -108,6 +108,7 @@ def build_road(STARTX, STARTZ, distance_score_paths, next_building_location, hei
         if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
             road_level = int(road_heights[point_index])
             GEO.placeVolume(point[0], road_level - 1, point[1], point[0], road_level - 1, point[1], blocks = 'diamond_block')
+            GEO.placeVolume(point[0], road_level, point[1], point[0], road_level + 4, point[1], blocks = 'air')
             roads.append(point)
 
 
@@ -120,7 +121,12 @@ def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, END
     look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
     look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
     look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 10000
-    look_area_height_map_convolved = convolve2d(look_area_height_map_gradient, convolution_array, mode = 'valid')
+
+    try:
+        look_area_height_map_convolved = convolve2d(look_area_height_map_gradient, convolution_array, mode = 'valid')
+    except:
+        print(look_area_height_map_gradient)
+        print(convolution_array)
 
     convolved_index = np.unravel_index(np.argmin(look_area_height_map_convolved), look_area_height_map_convolved.shape)
     house_area = np.array([[look_area[0, 0] + convolved_index[0], look_area[0, 0] + convolved_index[0] + house_size[0] - 1], [look_area[1, 0] + convolved_index[1], look_area[1, 0] + convolved_index[1] + house_size[1] - 1]])
@@ -178,14 +184,14 @@ def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STA
         #!! assumption: all buildings are rectangular
         for x_house in range(house_area[0, 0], house_area[0, 1] + 1):
             if x_house == house_area[0, 0] or x_house == house_area[0, 1]:
-                for y_house in range(house_area[1, 0], house_area[1, 1] + 1):
-                    point_stack.append((0, x_house, y_house, []))
+                for z_house in range(house_area[1, 0], house_area[1, 1] + 1):
+                    point_stack.append((0, x_house, z_house, [(x_house, z_house)]))
             else:
-                point_stack.append((0, x_house, house_area[1, 0], []))
-                point_stack.append((0, x_house, house_area[1, 1], []))
+                point_stack.append((0, x_house, house_area[1, 0], [(x_house, house_area[1, 0])]))
+                point_stack.append((0, x_house, house_area[1, 1], [(x_house, house_area[1, 1])]))
     for road_point in roads:
         score_map[road_point[0] - STARTX, road_point[1] - STARTZ] = 0
-        point_stack.append((0, road_point[0], road_point[1], []))
+        point_stack.append((0, road_point[0], road_point[1], [(road_point[0], road_point[1])]))
     heapq.heapify(point_stack)
     #### pop from point stack
     while len(point_stack) > 0:

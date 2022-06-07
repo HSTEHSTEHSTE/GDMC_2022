@@ -74,7 +74,7 @@ def spin_counterclockwise(blueprint, centre_point, spin_orientation):
     return new_blueprint
 
 
-ids = ['starter_dirt']
+ids = ['starter_dirt', '1b_0']
 
 # x, y, z
 blueprints = {
@@ -200,7 +200,8 @@ blueprints = {
 
 # x, z, y
 sizes = {
-    'starter_dirt': (9, 9, 5)
+    'starter_dirt': (9, 9, 5),
+    '1b_0': (9, 9, 10)
 }
 
 
