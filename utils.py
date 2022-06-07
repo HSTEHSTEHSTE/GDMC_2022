@@ -3,13 +3,14 @@ import numpy as np
 import heapq
 from gdpc import geometry as GEO
 from scipy.signal import convolve2d
+from scipy.optimize import linprog
 from blueprints import house, lookup_table
 from gdpc import direct_interface as di
 
 
 def get_geography_map(world_slice, STARTX, STARTZ):
     sea_map = (world_slice.heightmaps['OCEAN_FLOOR'] == world_slice.heightmaps['MOTION_BLOCKING_NO_LEAVES']).astype(int)
-    # 1: land, 0: sea
+    # 0: land, 1: sea
 
     # true_height_map = np.zeros(sea_map.shape)
     # for x_index in range(0, true_height_map.shape[0]):
@@ -27,13 +28,13 @@ def get_geography_map(world_slice, STARTX, STARTZ):
     return sea_map
 
 
-def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):
+def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, height_common):
     pick_location_success = False
     while not pick_location_success:
         x_start = random.randint(STARTX, ENDX)
         z_start = random.randint(STARTZ, ENDZ)
         
-        if sea_map[x_start - STARTX, z_start - STARTZ] == 1:
+        if sea_map[x_start - STARTX, z_start - STARTZ] == 1 and height_common - height_map[x_start - STARTX, z_start - STARTZ] < 3:
             pick_location_success = True
             y_start = height_map[x_start - STARTX, z_start - STARTZ]
     print('Start location: ', x_start, y_start, z_start)
@@ -41,13 +42,76 @@ def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ):
 
 
 def clear_plot(house_area, house_level, STARTY, ENDY):
-    GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], 150, house_area[1, 1], blocks = 'air')
-    GEO.placeVolume(house_area[0, 0], STARTY, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'dirt', replace = ['minecraft:air', 'minecraft:water', 'minecraft:lava', 'minecraft:tallgrass', 'minecraft:leaves'])
+    # GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], house_level + 20, house_area[1, 1], blocks = 'air')
+    GEO.placeVolume(house_area[0, 0], house_level - 3, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'dirt', replace = ['minecraft:air', 'minecraft:water', 'minecraft:lava', 'minecraft:tallgrass', 'minecraft:leaves'])
 
 
-def build_road(road_point, road_level, STARTY, ENDY):
-    # GEO.placeVolume(road_point[0], road_level + 1, road_point[1], road_point[0], ENDY, road_point[1], blocks = 'air')
-    GEO.placeVolume(road_point[0], road_level - 1, road_point[1], road_point[0], road_level - 1, road_point[1], blocks = 'diamond_block')
+def build_road(STARTX, STARTZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads):
+    # linear system: minimise terraforming, subject to height gradient less than 2
+    # number of variables: equal to lenght of path - 2 (start and finish not counted, used as linear constraint instead)
+    # approximate into integer linear system by rounding
+
+    # min sum_1^{k - 1}{t_k}
+    objective = np.concatenate([np.ones([len(distance_score_paths[next_building_location])]), np.zeros([len(distance_score_paths[next_building_location])])])
+
+    constraint_equations = []
+    constraint_values = []
+    for point_index, point in enumerate(distance_score_paths[next_building_location]):
+        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0:
+            objective[point_index] = 0
+        else:
+        # convert t (absolute difference) into x (true height)
+            ## -t <= x - h
+            constraint_equation_0 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+            constraint_equation_0[point_index] = -1
+            constraint_equation_0[point_index + len(distance_score_paths[next_building_location])] = -1
+            constraint_value_0 = -height_map[point[0] - STARTX, point[1] - STARTZ]
+            constraint_equations.append(constraint_equation_0)
+            constraint_values.append(constraint_value_0)
+
+            ## -t <= h - x
+            constraint_equation_1 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+            constraint_equation_1[point_index] = -1
+            constraint_equation_1[point_index + len(distance_score_paths[next_building_location])] = 1
+            constraint_value_1 = height_map[point[0] - STARTX, point[1] - STARTZ]
+            constraint_equations.append(constraint_equation_1)
+            constraint_values.append(constraint_value_1)
+
+        # ensure height gradient is less than 1
+        if point_index > 0:
+            # if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0 or house_areas_map[distance_score_paths[next_building_location][point_index - 1][0] - STARTX, distance_score_paths[next_building_location][point_index - 1][1] - STARTZ] > 0:
+            if True:
+                ## x_i - x_{i - 1} <= 1
+                constraint_equation_2 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                constraint_equation_2[point_index + len(distance_score_paths[next_building_location])] = 1
+                constraint_equation_2[point_index + len(distance_score_paths[next_building_location]) - 1] = -1
+                constraint_value_2 = 1
+                constraint_equations.append(constraint_equation_2)
+                constraint_values.append(constraint_value_2)
+
+                ## x_{i - 1} - x_i <= 1
+                constraint_equation_3 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                constraint_equation_3[point_index + len(distance_score_paths[next_building_location])] = -1
+                constraint_equation_3[point_index + len(distance_score_paths[next_building_location]) - 1] = 1
+                constraint_value_3 = 1
+                constraint_equations.append(constraint_equation_3)
+                constraint_values.append(constraint_value_3)
+
+    # print(constraint_equations)
+    # print(constraint_values)
+
+    road_heights = np.rint(linprog(objective, A_ub = constraint_equations, b_ub = constraint_values).x[len(distance_score_paths[next_building_location]):])
+    print(road_heights)
+
+
+    for point_index, point in enumerate(distance_score_paths[next_building_location]):
+        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
+            road_level = int(road_heights[point_index])
+            GEO.placeVolume(point[0], road_level - 1, point[1], point[0], road_level - 1, point[1], blocks = 'diamond_block')
+            roads.append(point)
+
+
+    return roads
 
 
 def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start):
@@ -55,7 +119,7 @@ def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, END
     look_area = np.array([[max(STARTX, x_start - house_size[0] + 1), min(ENDX, x_start + house_size[0])], [max(STARTZ, z_start - house_size[1] + 1), min(ENDZ, z_start + house_size[1])]])
     look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
     look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
-    look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 1000
+    look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 10000
     look_area_height_map_convolved = convolve2d(look_area_height_map_gradient, convolution_array, mode = 'valid')
 
     convolved_index = np.unravel_index(np.argmin(look_area_height_map_convolved), look_area_height_map_convolved.shape)
@@ -92,7 +156,7 @@ def get_path_cost(point_x, point_z, differential, edge_costs):
             return edge_costs[1][point_x, point_z - 1]
 
 
-def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1):
+def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1, edge_weight = 1):
     ## score map
     score_map = np.full(sea_map.shape, fill_value = -1)
 
@@ -129,7 +193,7 @@ def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STA
         adjacent_point_list = np.asarray(get_adjacent_points(next_point[1], next_point[2], STARTX, STARTZ, ENDX, ENDZ))
         adjacent_point_differential = adjacent_point_list - np.array([next_point[1], next_point[2]])
         for adjacent_point_index, adjacent_point in enumerate(adjacent_point_list):
-            new_cost = get_path_cost(next_point[1] - STARTX, next_point[2] - STARTZ, adjacent_point_differential[adjacent_point_index], edge_costs) + base_edge_cost + next_point[0]
+            new_cost = get_path_cost(next_point[1] - STARTX, next_point[2] - STARTZ, adjacent_point_differential[adjacent_point_index], edge_costs) * edge_weight + base_edge_cost + next_point[0]
             
             if score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] == -1 or score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] > new_cost:
                 old_point = (score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ], adjacent_point[0], adjacent_point[1])
@@ -160,3 +224,13 @@ def build_house(house_area, house_level, orientation, house_id):
     for block_key in blueprint:
         point_list = blueprint[block_key]
         GEO.placeFromList(point_list, block_key)
+
+
+def group_heights(height_map, sea_map):
+    heights = {}
+    height_lengths = {}
+    for height in np.unique(height_map):
+        heights[height] = np.stack(np.where(np.logical_and(height == height_map, sea_map == 0)), axis = -1)
+        height_lengths[height] = len(heights[height])
+    
+    return heights, height_lengths

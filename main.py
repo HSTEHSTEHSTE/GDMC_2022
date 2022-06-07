@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map, group_heights
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 
@@ -12,10 +12,11 @@ WORLDSLICE = WL.WorldSlice(STARTX, STARTZ, ENDX + 1, ENDZ + 1)
 
 height_map = np.minimum(WORLDSLICE.heightmaps['OCEAN_FLOOR'], WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES'])
 
-
-
 surface_map = WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES']
 sea_map = get_geography_map(WORLDSLICE, STARTX, STARTZ)
+heights, height_lengths = group_heights(height_map, sea_map)
+height_common = max(height_lengths, key = height_lengths.get)
+
 time_read_map = time.time()
 print("Map read: ", time_read_map - time_start)
 house_areas = []
@@ -24,7 +25,7 @@ house_areas_map = np.zeros(sea_map.shape)
 
 
 # pick starting position
-x_start, y_start, z_start = pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ)
+x_start, y_start, z_start = pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, height_common)
 # build starter house
 house_size = (9, 9)
 ## locate starter plot
@@ -50,8 +51,8 @@ sea_build_cost = 100
 for i in range(3):
     flat_distance_score_map, _ = get_distance_score_map(sea_map, np.zeros(surface_map.shape), house_areas, [], STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 0)
     distance_score_map, distance_score_paths = get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ)
-    build_limits = np.where(flat_distance_score_map >= 15, distance_score_map, 9999)
-    build_score_map = build_limits + sea_build_cost * (np.ones(sea_map.shape) - sea_map)
+    build_limits = np.where(flat_distance_score_map >= 50, distance_score_map, 9999)
+    build_score_map = build_limits + sea_build_cost * (np.ones(sea_map.shape) - sea_map) + (height_map - height_common) * 50
 
     next_building_location = np.unravel_index(build_limits.argmin(), build_score_map.shape)
     next_building_location = (next_building_location[0] + STARTX, next_building_location[1] + STARTZ)
@@ -72,19 +73,13 @@ for i in range(3):
     build_house(house_area, house_level, [0, 0], 'starter_dirt')
 
     ### update maps
-
     sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
     height_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = house_level
     surface_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = house_level
     house_areas_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
 
     ### build roads
-
-    for point in distance_score_paths[next_building_location]:
-        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
-            road_level = height_map[point[0] - STARTX, point[1] - STARTZ]
-            build_road(point, road_level, STARTY, ENDY)
-            roads.append(point)
+    roads = build_road(STARTX, STARTZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads)
 
     ### display elapsed time
     time_house = time.time()

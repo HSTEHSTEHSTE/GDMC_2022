@@ -23,7 +23,8 @@ def load_as_blueprint(house_area, house_level, house_level_max):
             for z in range(house_area[1, 0], house_area[1, 1] + 1):
                 block = get_block_with_state(x, y, z)[10:]
                 
-                if block != 'air[]':
+                # if block != 'air[]':
+                if True:
                     if block in blueprint:
                         blueprint[block].append((x - house_area[0, 0], y - house_level, z - house_area[1, 0]))
                     else:
