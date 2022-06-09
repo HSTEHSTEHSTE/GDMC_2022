@@ -15,8 +15,11 @@ def get_block_with_state(x, y, z):
 
 
 # all boundaries inclusive
-def load_as_blueprint(house_area, house_level, house_level_max):
+def load_as_blueprint(house_area, house_level, house_level_max, house_level_base = -1):
     blueprint = {}
+    size = [house_area[0, 1] - house_area[0, 0] + 1, house_area[1, 1] - house_area[1, 0] + 1, house_level_max - house_level + 1]
+    if house_level_base == -1:
+        house_level_base = house_level
 
     for x in range(house_area[0, 0], house_area[0, 1] + 1):
         for y in range(house_level, house_level_max + 1):
@@ -26,10 +29,11 @@ def load_as_blueprint(house_area, house_level, house_level_max):
                 # if block != 'air[]':
                 if True:
                     if block in blueprint:
-                        blueprint[block].append((x - house_area[0, 0], y - house_level, z - house_area[1, 0]))
+                        blueprint[block].append((x - house_area[0, 0], y - house_level_base, z - house_area[1, 0]))
                     else:
-                        blueprint[block] = [(x - house_area[0, 0], y - house_level, z - house_area[1, 0])]
+                        blueprint[block] = [(x - house_area[0, 0], y - house_level_base, z - house_area[1, 0])]
 
     pp = pprint.PrettyPrinter(depth = 4, width = 200, compact = True)
     pp.pprint(blueprint)
+    print(size)
     return blueprint

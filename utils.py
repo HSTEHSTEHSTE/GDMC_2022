@@ -47,62 +47,86 @@ def clear_plot(house_area, house_level, STARTY, ENDY):
 
 
 def build_road(STARTX, STARTZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads):
+    # print(distance_score_paths[next_building_location])
+    # for point in distance_score_paths[next_building_location]:
+    #     print(house_areas_map[point[0] - STARTX, point[1] - STARTZ])
+    # input()
+
+
     # linear system: minimise terraforming, subject to height gradient less than 2
     # number of variables: equal to lenght of path - 2 (start and finish not counted, used as linear constraint instead)
     # approximate into integer linear system by rounding
 
     # min sum_1^{k - 1}{t_k}
     objective = np.concatenate([np.ones([len(distance_score_paths[next_building_location])]), np.zeros([len(distance_score_paths[next_building_location])])])
+    # objective = np.concatenate([np.zeros([len(distance_score_paths[next_building_location])]), np.zeros([len(distance_score_paths[next_building_location])])])
 
     constraint_equations = []
     constraint_values = []
     for point_index, point in enumerate(distance_score_paths[next_building_location]):
+        # convert t (absolute difference) into x (true height)
+        ## -t <= x - h
+        constraint_equation_0 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+        constraint_equation_0[point_index] = -1
+        constraint_equation_0[point_index + len(distance_score_paths[next_building_location])] = -1
+        constraint_value_0 = -height_map[point[0] - STARTX, point[1] - STARTZ]
+        constraint_equations.append(constraint_equation_0)
+        constraint_values.append(constraint_value_0)
+
+        ## -t <= h - x
+        constraint_equation_1 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+        constraint_equation_1[point_index] = -1
+        constraint_equation_1[point_index + len(distance_score_paths[next_building_location])] = 1
+        constraint_value_1 = height_map[point[0] - STARTX, point[1] - STARTZ]
+        constraint_equations.append(constraint_equation_1)
+        constraint_values.append(constraint_value_1)
+
         if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0:
             objective[point_index] = 0
+
+            # road must be at building height
+            ## x <= h
+            constraint_equation_house_0 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+            constraint_equation_house_0[point_index + len(distance_score_paths[next_building_location])] = 1
+            constraint_value_house_0 = height_map[point[0] - STARTX, point[1] - STARTZ]
+            constraint_equations.append(constraint_equation_house_0)
+            constraint_values.append(constraint_value_house_0)
+
+            ## -x <= -h
+            constraint_equation_house_1 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+            constraint_equation_house_1[point_index + len(distance_score_paths[next_building_location])] = -1
+            constraint_value_house_1 = -height_map[point[0] - STARTX, point[1] - STARTZ]
+            constraint_equations.append(constraint_equation_house_1)
+            constraint_values.append(constraint_value_house_1)
+
         else:
-        # convert t (absolute difference) into x (true height)
-            ## -t <= x - h
-            constraint_equation_0 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-            constraint_equation_0[point_index] = -1
-            constraint_equation_0[point_index + len(distance_score_paths[next_building_location])] = -1
-            constraint_value_0 = -height_map[point[0] - STARTX, point[1] - STARTZ]
-            constraint_equations.append(constraint_equation_0)
-            constraint_values.append(constraint_value_0)
+            # ensure height gradient is less than 1
+            if point_index > 0:
+                # if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0 or house_areas_map[distance_score_paths[next_building_location][point_index - 1][0] - STARTX, distance_score_paths[next_building_location][point_index - 1][1] - STARTZ] > 0:
+                if point_index > 0:
+                    ## x_i - x_{i - 1} <= 1
+                    constraint_equation_2 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                    constraint_equation_2[point_index + len(distance_score_paths[next_building_location])] = 1
+                    constraint_equation_2[point_index + len(distance_score_paths[next_building_location]) - 1] = -1
+                    constraint_value_2 = 1
+                    constraint_equations.append(constraint_equation_2)
+                    constraint_values.append(constraint_value_2)
 
-            ## -t <= h - x
-            constraint_equation_1 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-            constraint_equation_1[point_index] = -1
-            constraint_equation_1[point_index + len(distance_score_paths[next_building_location])] = 1
-            constraint_value_1 = height_map[point[0] - STARTX, point[1] - STARTZ]
-            constraint_equations.append(constraint_equation_1)
-            constraint_values.append(constraint_value_1)
+                    ## x_{i - 1} - x_i <= 1
+                    constraint_equation_3 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                    constraint_equation_3[point_index + len(distance_score_paths[next_building_location])] = -1
+                    constraint_equation_3[point_index + len(distance_score_paths[next_building_location]) - 1] = 1
+                    constraint_value_3 = 1
+                    constraint_equations.append(constraint_equation_3)
+                    constraint_values.append(constraint_value_3)
 
-        # ensure height gradient is less than 1
-        if point_index > 0:
-            # if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0 or house_areas_map[distance_score_paths[next_building_location][point_index - 1][0] - STARTX, distance_score_paths[next_building_location][point_index - 1][1] - STARTZ] > 0:
-            if True:
-                ## x_i - x_{i - 1} <= 1
-                constraint_equation_2 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-                constraint_equation_2[point_index + len(distance_score_paths[next_building_location])] = 1
-                constraint_equation_2[point_index + len(distance_score_paths[next_building_location]) - 1] = -1
-                constraint_value_2 = 1
-                constraint_equations.append(constraint_equation_2)
-                constraint_values.append(constraint_value_2)
-
-                ## x_{i - 1} - x_i <= 1
-                constraint_equation_3 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-                constraint_equation_3[point_index + len(distance_score_paths[next_building_location])] = -1
-                constraint_equation_3[point_index + len(distance_score_paths[next_building_location]) - 1] = 1
-                constraint_value_3 = 1
-                constraint_equations.append(constraint_equation_3)
-                constraint_values.append(constraint_value_3)
-
-    # print(constraint_equations)
-    # print(constraint_values)
+    for constraint_index, constraint_equation in constraint_equations:
+        print(constraint_equation)
+        print(constraint_values[constraint_index])
 
     road_heights = np.rint(linprog(objective, A_ub = constraint_equations, b_ub = constraint_values).x[len(distance_score_paths[next_building_location]):])
     print(road_heights)
-
+    input()
 
     for point_index, point in enumerate(distance_score_paths[next_building_location]):
         if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
@@ -110,16 +134,16 @@ def build_road(STARTX, STARTZ, distance_score_paths, next_building_location, hei
             GEO.placeVolume(point[0], road_level - 1, point[1], point[0], road_level - 1, point[1], blocks = 'diamond_block')
             GEO.placeVolume(point[0], road_level, point[1], point[0], road_level + 4, point[1], blocks = 'air')
             roads.append(point)
+            height_map[point[0] - STARTX, point[1] - STARTZ] = road_level
 
-
-    return roads
+    return roads, height_map
 
 
 def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start):
     convolution_array = np.ones(house_size)
-    look_area = np.array([[max(STARTX, x_start - house_size[0] + 1), min(ENDX, x_start + house_size[0])], [max(STARTZ, z_start - house_size[1] + 1), min(ENDZ, z_start + house_size[1])]])
-    look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
-    look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ)]
+    look_area = np.array([[max(STARTX, min(x_start - house_size[0] + 1, ENDX - house_size[0] + 1)), min(ENDX, max(x_start + house_size[0] - 1, STARTX + house_size[0] - 1))], [max(STARTZ, min(z_start - house_size[1] + 1, ENDZ - house_size[1] + 1)), min(ENDZ, max(z_start + house_size[1] - 1, STARTZ + house_size[1] - 1))]])
+    look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX + 1), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ + 1)]
+    look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX + 1), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ + 1)]
     look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 10000
 
     try:
@@ -130,6 +154,8 @@ def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, END
 
     convolved_index = np.unravel_index(np.argmin(look_area_height_map_convolved), look_area_height_map_convolved.shape)
     house_area = np.array([[look_area[0, 0] + convolved_index[0], look_area[0, 0] + convolved_index[0] + house_size[0] - 1], [look_area[1, 0] + convolved_index[1], look_area[1, 0] + convolved_index[1] + house_size[1] - 1]])
+    print(x_start, y_start, z_start)
+    print(look_area)
     print('house area: ', house_area)
     house_level = y_start
 
@@ -140,11 +166,11 @@ def get_adjacent_points(point_x, point_z, STARTX, STARTZ, ENDX, ENDZ):
     adjacent_point_list = []
     if point_x > STARTX:
         adjacent_point_list.append([point_x - 1, point_z])
-    if point_x <= ENDX:
+    if point_x < ENDX:
         adjacent_point_list.append([point_x + 1, point_z])
     if point_z > STARTZ:
         adjacent_point_list.append([point_x, point_z - 1])
-    if point_z <= ENDZ:
+    if point_z < ENDZ:
         adjacent_point_list.append([point_x, point_z + 1])
     return adjacent_point_list
 
@@ -202,15 +228,15 @@ def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STA
             new_cost = get_path_cost(next_point[1] - STARTX, next_point[2] - STARTZ, adjacent_point_differential[adjacent_point_index], edge_costs) * edge_weight + base_edge_cost + next_point[0]
             
             if score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] == -1 or score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] > new_cost:
-                old_point = (score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ], adjacent_point[0], adjacent_point[1])
-                new_point = (new_cost, adjacent_point[0], adjacent_point[1], next_point[3] + [(next_point[1], next_point[2])])
+                old_point = (score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ], adjacent_point[0], adjacent_point[1], next_point[3])
+                new_point = (new_cost, adjacent_point[0], adjacent_point[1], next_point[3] + [(adjacent_point[0], adjacent_point[1])])
                 if old_point in point_stack:
                     point_stack[point_stack.index(old_point)] = new_point
                 else:
                     heapq.heappush(point_stack, new_point)
                 heapq.heapify(point_stack)
                 score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] = new_cost
-                paths[(adjacent_point[0], adjacent_point[1])] = next_point[3] + [(next_point[1], next_point[2])]
+                paths[(adjacent_point[0], adjacent_point[1])] = next_point[3] + [(adjacent_point[0], adjacent_point[1])]
 
     return score_map, paths
 
