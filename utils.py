@@ -99,34 +99,33 @@ def build_road(STARTX, STARTZ, distance_score_paths, next_building_location, hei
             constraint_equations.append(constraint_equation_house_1)
             constraint_values.append(constraint_value_house_1)
 
-        else:
-            # ensure height gradient is less than 1
+        # ensure height gradient is less than 1
+        if point_index > 0:
+            # if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0 or house_areas_map[distance_score_paths[next_building_location][point_index - 1][0] - STARTX, distance_score_paths[next_building_location][point_index - 1][1] - STARTZ] > 0:
             if point_index > 0:
-                # if house_areas_map[point[0] - STARTX, point[1] - STARTZ] > 0 or house_areas_map[distance_score_paths[next_building_location][point_index - 1][0] - STARTX, distance_score_paths[next_building_location][point_index - 1][1] - STARTZ] > 0:
-                if point_index > 0:
-                    ## x_i - x_{i - 1} <= 1
-                    constraint_equation_2 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-                    constraint_equation_2[point_index + len(distance_score_paths[next_building_location])] = 1
-                    constraint_equation_2[point_index + len(distance_score_paths[next_building_location]) - 1] = -1
-                    constraint_value_2 = 1
-                    constraint_equations.append(constraint_equation_2)
-                    constraint_values.append(constraint_value_2)
+                ## x_i - x_{i - 1} <= 1
+                constraint_equation_2 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                constraint_equation_2[point_index + len(distance_score_paths[next_building_location])] = 1
+                constraint_equation_2[point_index + len(distance_score_paths[next_building_location]) - 1] = -1
+                constraint_value_2 = 1
+                constraint_equations.append(constraint_equation_2)
+                constraint_values.append(constraint_value_2)
 
-                    ## x_{i - 1} - x_i <= 1
-                    constraint_equation_3 = np.zeros([2 * len(distance_score_paths[next_building_location])])
-                    constraint_equation_3[point_index + len(distance_score_paths[next_building_location])] = -1
-                    constraint_equation_3[point_index + len(distance_score_paths[next_building_location]) - 1] = 1
-                    constraint_value_3 = 1
-                    constraint_equations.append(constraint_equation_3)
-                    constraint_values.append(constraint_value_3)
+                ## x_{i - 1} - x_i <= 1
+                constraint_equation_3 = np.zeros([2 * len(distance_score_paths[next_building_location])])
+                constraint_equation_3[point_index + len(distance_score_paths[next_building_location])] = -1
+                constraint_equation_3[point_index + len(distance_score_paths[next_building_location]) - 1] = 1
+                constraint_value_3 = 1
+                constraint_equations.append(constraint_equation_3)
+                constraint_values.append(constraint_value_3)
 
-    for constraint_index, constraint_equation in constraint_equations:
-        print(constraint_equation)
-        print(constraint_values[constraint_index])
+    # for constraint_index, constraint_equation in enumerate(constraint_equations):
+    #     print(constraint_equation)
+    #     print(constraint_values[constraint_index])
 
     road_heights = np.rint(linprog(objective, A_ub = constraint_equations, b_ub = constraint_values).x[len(distance_score_paths[next_building_location]):])
-    print(road_heights)
-    input()
+    # print(road_heights)
+    # input()
 
     for point_index, point in enumerate(distance_score_paths[next_building_location]):
         if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
