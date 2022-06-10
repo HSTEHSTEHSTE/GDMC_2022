@@ -70,7 +70,7 @@ for i in range(3):
     house_areas.append(house_area)
 
     ### build house
-    build_house(house_area, house_level, [0, 0], '1b_0')
+    build_house(house_area, house_level, [0, 0], '2b_0')
 
     ### update maps
     sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
