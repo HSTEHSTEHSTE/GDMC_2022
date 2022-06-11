@@ -22,16 +22,16 @@ def load_as_blueprint(house_area, house_level, house_level_max, house_level_base
         house_level_base = house_level
 
     for x in range(house_area[0, 0], house_area[0, 1] + 1):
-        for y in range(house_level, house_level_max + 1):
+        for y in range(house_level_base, house_level_max + 1):
             for z in range(house_area[1, 0], house_area[1, 1] + 1):
                 block = get_block_with_state(x, y, z)[10:]
                 
                 # if block != 'air[]':
                 if True:
                     if block in blueprint:
-                        blueprint[block].append((x - house_area[0, 0], y - house_level_base, z - house_area[1, 0]))
+                        blueprint[block].append((x - house_area[0, 0], y - house_level, z - house_area[1, 0]))
                     else:
-                        blueprint[block] = [(x - house_area[0, 0], y - house_level_base, z - house_area[1, 0])]
+                        blueprint[block] = [(x - house_area[0, 0], y - house_level, z - house_area[1, 0])]
 
     pp = pprint.PrettyPrinter(depth = 4, width = 200, compact = True)
     pp.pprint(blueprint)
