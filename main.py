@@ -74,6 +74,7 @@ while (time_house - time_start) < time_limit:
     ### choose house type
     house_id = random.choice(categories['small'])
     house_size = (sizes[house_id][0], sizes[house_id][1])
+    # house_size = (sizes['2b_3'][0], sizes['2b_3'][1])
 
     ### locate plot
     house_area, house_level = pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, next_building_location[0], height_map[next_building_location[0] - STARTX, next_building_location[1] - STARTZ], next_building_location[1])
@@ -87,6 +88,7 @@ while (time_house - time_start) < time_limit:
 
     ### build house
     build_house(house_area, house_level, [0, 0], house_id)
+    # build_house(house_area, house_level, [0, 0], '2b_3')
 
     ### update maps
     sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
