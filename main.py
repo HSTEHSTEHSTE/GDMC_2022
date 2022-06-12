@@ -97,7 +97,7 @@ while (time_house - time_start) < time_limit:
     house_areas_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
 
     ### build roads
-    roads, height_map = build_road(STARTX, STARTZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads)
+    roads, height_map = build_road(STARTX, STARTZ, ENDX, ENDZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads)
 
     ### display elapsed time
     time_house = time.time()
