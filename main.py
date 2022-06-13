@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map, group_heights
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map, group_heights, choose_house_type
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 from blueprints import sizes, categories
@@ -10,7 +10,12 @@ import random
 ## Parameters
 build_area_size_x = 128
 build_area_size_z = 128
-time_limit = 60
+time_limit = 300
+house_weights = {
+    'small': 7,
+    'large': 3,
+    'starter': .1
+}
 
 
 time_start = time.time()
@@ -72,9 +77,10 @@ while (time_house - time_start) < time_limit:
     next_building_location = (next_building_location[0] + STARTX, next_building_location[1] + STARTZ)
 
     ### choose house type
-    house_id = random.choice(categories['small'])
+    house_type = choose_house_type(house_weights)[0]
+    house_id = random.choice(categories[house_type])
     house_size = (sizes[house_id][0], sizes[house_id][1])
-    # house_size = (sizes['2b_3'][0], sizes['2b_3'][1])
+    # house_size = (sizes['large_0'][0], sizes['large_0'][1])
 
     ### locate plot
     house_area, house_level = pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, next_building_location[0], height_map[next_building_location[0] - STARTX, next_building_location[1] - STARTZ], next_building_location[1])
@@ -88,7 +94,7 @@ while (time_house - time_start) < time_limit:
 
     ### build house
     build_house(house_area, house_level, [0, 0], house_id)
-    # build_house(house_area, house_level, [0, 0], '2b_3')
+    # build_house(house_area, house_level, [0, 0], 'large_0')
 
     ### update maps
     sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1

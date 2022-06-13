@@ -273,3 +273,8 @@ def group_heights(height_map, sea_map):
         height_lengths[height] = len(heights[height])
     
     return heights, height_lengths
+
+
+def choose_house_type(house_type_weights):
+    house_type = np.random.choice(list(house_type_weights.keys()), 1, list(house_type_weights.values()))
+    return house_type
