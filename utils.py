@@ -128,12 +128,13 @@ def build_road(STARTX, STARTZ, ENDX, ENDZ, distance_score_paths, next_building_l
     # input()
 
     for point_index, point in enumerate(distance_score_paths[next_building_location]):
-        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0:
+        if house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 0 or house_areas_map[point[0] - STARTX, point[1] - STARTZ] == 2:
             road_level = int(road_heights[point_index])
             GEO.placeVolume(point[0], road_level - 1, point[1], point[0], road_level - 1, point[1], blocks = 'cobblestone')
             GEO.placeVolume(point[0], road_level, point[1], point[0], road_level + 4, point[1], blocks = 'air')
             roads.append(point)
             height_map[point[0] - STARTX, point[1] - STARTZ] = road_level
+            house_areas_map[point[0] - STARTX, point[1] - STARTZ] = 2
         adjacent_road_points = get_adjacent_points(point[0], point[1], STARTX, STARTZ, ENDX, ENDZ)
         for adjacent_road_point in adjacent_road_points:
             if house_areas_map[adjacent_road_point[0] - STARTX, adjacent_road_point[1] - STARTZ] == 0:
@@ -142,8 +143,9 @@ def build_road(STARTX, STARTZ, ENDX, ENDZ, distance_score_paths, next_building_l
                 GEO.placeVolume(adjacent_road_point[0], road_level, adjacent_road_point[1], adjacent_road_point[0], road_level + 4, adjacent_road_point[1], blocks = 'air')
                 roads.append(adjacent_road_point)
                 height_map[adjacent_road_point[0] - STARTX, adjacent_road_point[1] - STARTZ] = road_level
+                house_areas_map[point[0] - STARTX, point[1] - STARTZ] = 2
 
-    return roads, height_map
+    return roads, height_map, house_areas_map
 
 
 def pick_plot(house_size, height_map, house_areas_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start):
