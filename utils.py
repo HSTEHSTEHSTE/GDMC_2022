@@ -6,6 +6,7 @@ from math import floor
 from gdpc import geometry as GEO
 from scipy.signal import convolve2d
 from scipy.optimize import linprog
+from scipy.ndimage.measurements import center_of_mass
 from blueprints import house, lookup_table, categories
 from gdpc import direct_interface as di
 
@@ -57,7 +58,7 @@ def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, heig
 
 def clear_plot(house_area, house_level, STARTY, ENDY):
     # GEO.placeVolume(house_area[0, 0], house_level, house_area[1, 0], house_area[0, 1], house_level + 20, house_area[1, 1], blocks = 'air')
-    GEO.placeVolume(house_area[0, 0], house_level - 3, house_area[1, 0], house_area[0, 1], house_level - 1, house_area[1, 1], blocks = 'cobblestone')
+    GEO.placeVolume(house_area[0, 0], house_level - 1, house_area[1, 0], house_area[0, 1], house_level - 3, house_area[1, 1], blocks = 'cobblestone')
 
 
 def build_road(STARTX, STARTZ, ENDX, ENDZ, distance_score_paths, next_building_location, height_map, house_areas_map, roads):
@@ -184,24 +185,27 @@ def pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, 
     print(look_area)
     print('house area: ', house_area)
 
-    if house_type != 'grand':
+    #if house_type != 'grand':
+    if False:
         house_level = y_start
     else:
         house_level = np.amax(height_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1])
     house_level = max(house_level, 63)
 
-    return house_area, house_level
+    house_area_validity = not (np.any(house_areas_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1] == 1))
+
+    return house_area, house_level, house_area_validity
 
 
 def get_adjacent_points(point_x, point_z, STARTX, STARTZ, ENDX, ENDZ):
     adjacent_point_list = []
     if point_x > STARTX:
         adjacent_point_list.append([point_x - 1, point_z])
-    if point_x < ENDX:
+    if point_x + 1 < ENDX:
         adjacent_point_list.append([point_x + 1, point_z])
     if point_z > STARTZ:
         adjacent_point_list.append([point_x, point_z - 1])
-    if point_z < ENDZ:
+    if point_z + 1 < ENDZ:
         adjacent_point_list.append([point_x, point_z + 1])
     return adjacent_point_list
 
@@ -305,3 +309,10 @@ def choose_house_type(house_type_weights):
     weights = np.divide(weights, np.sum(weights))
     house_type = np.random.choice(list(house_type_weights.keys()), 1, p = weights)
     return house_type
+
+
+def find_centre(house_areas_map, STARTX, STARTZ):
+    houses_map = np.where(house_areas_map == 1, 1, 0)
+    com = center_of_mass(houses_map)
+    
+    return (int(np.rint(com[0])) + STARTX, int(np.rint(com[1])) + STARTZ)

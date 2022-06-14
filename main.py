@@ -1,6 +1,6 @@
 import numpy as np
 import time
-from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map, group_heights, choose_house_type
+from utils import clear_plot, pick_starting_location, pick_plot, get_distance_score_map, verify_build_area, build_road, build_house, get_geography_map, group_heights, choose_house_type, find_centre
 from gdpc import interface as INTF
 from gdpc import worldLoader as WL
 from blueprints import sizes, categories
@@ -49,7 +49,7 @@ x_start, y_start, z_start = pick_starting_location(height_map, sea_map, STARTX, 
 starter_house_id = random.choice(categories['starter'])
 house_size = (sizes[starter_house_id][0], sizes[starter_house_id][1])
 ## locate starter plot
-house_area, house_level = pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start)
+house_area, house_level, _ = pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start)
 ## clear plot
 clear_plot(house_area, house_level, STARTY, ENDY)
 ## build house
@@ -70,6 +70,8 @@ sea_build_cost = 20000
 ## iterate over settlement number
 # for i in range(3):
 i = 0
+build_area_size_x_current = 32
+build_area_size_z_current = 32
 while (time_house - time_start) < time_limit:
     i += 1
 
@@ -85,23 +87,41 @@ while (time_house - time_start) < time_limit:
             house_weights[house_type] = 0
 
     house_id = random.choice(categories[house_type])
+    print(house_id)
     house_size = (sizes[house_id][0], sizes[house_id][1])
     # house_size = (sizes['grand_0'][0], sizes['grand_0'][1])
 
     ### locate house position
-    flat_distance_score_map, _ = get_distance_score_map(sea_map, np.zeros(surface_map.shape), house_areas, [], STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 0)
-    distance_score_map, distance_score_paths = get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ)
-    build_limits = np.where(flat_distance_score_map >= np.amax(np.asarray(house_size) * 2), distance_score_map, 9999999)
-    build_score_map = build_limits + sea_build_cost * (np.ones(sea_map.shape) - sea_map) + abs(height_map - height_common) * 3
+    house_area_verified = False
+    while not house_area_verified:
+        settlement_centre = find_centre(house_areas_map, STARTX, STARTZ)
+        startx_temp = max(settlement_centre[0] - build_area_size_x_current, STARTX)
+        endx_temp = min(settlement_centre[0] + build_area_size_x_current, ENDX)
+        startz_temp = max(settlement_centre[1] - build_area_size_z_current, STARTZ)
+        endz_temp = min(settlement_centre[1] + build_area_size_z_current, ENDZ)
 
-    next_building_location = np.unravel_index(build_score_map.argmin(), build_score_map.shape)
-    next_building_location = (next_building_location[0] + STARTX, next_building_location[1] + STARTZ)
+        sea_map_temp = sea_map[startx_temp - STARTX:endx_temp - STARTX + 1, startz_temp - STARTZ:endz_temp - STARTZ + 1]
+        surface_map_temp = surface_map[startx_temp - STARTX:endx_temp - STARTX + 1, startz_temp - STARTZ:endz_temp - STARTZ + 1]
+        height_map_temp = height_map[startx_temp - STARTX:endx_temp - STARTX + 1, startz_temp - STARTZ:endz_temp - STARTZ + 1]
+        house_areas_map_temp = house_areas_map[startx_temp - STARTX:endx_temp - STARTX + 1, startz_temp - STARTZ:endz_temp - STARTZ + 1]
 
-    ### locate plot
-    house_area, house_level = pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, next_building_location[0], height_map[next_building_location[0] - STARTX, next_building_location[1] - STARTZ], next_building_location[1], house_type = house_type)
+        flat_distance_score_map, _ = get_distance_score_map(sea_map_temp, np.zeros(surface_map_temp.shape), house_areas, [], startx_temp, startz_temp, endx_temp, endz_temp, seafaring_cost = 0)
+        distance_score_map, distance_score_paths = get_distance_score_map(sea_map_temp, surface_map_temp, house_areas, roads, startx_temp, startz_temp, endx_temp, endz_temp)
+        build_limits = np.where(flat_distance_score_map >= np.amax(np.asarray(house_size) * 2), distance_score_map, 9999999)
+        build_score_map = build_limits + sea_build_cost * (np.ones(sea_map_temp.shape) - sea_map_temp) + abs(height_map_temp - height_common) * 3
 
-    if not verify_build_area(house_area, house_areas_map, STARTX, STARTZ):
-        print("House area not verified!")
+        next_building_location = np.unravel_index(build_score_map.argmin(), build_score_map.shape)
+        next_building_location = (next_building_location[0] + startx_temp, next_building_location[1] + startz_temp)
+
+        ### locate plot
+        house_area, house_level, house_area_validity = pick_plot(house_size, height_map_temp, house_areas_map_temp, sea_map_temp, startx_temp, startz_temp, endx_temp, endz_temp, next_building_location[0], height_map_temp[next_building_location[0] - startx_temp, next_building_location[1] - startz_temp], next_building_location[1], house_type = house_type)
+
+        if not verify_build_area(house_area, house_areas_map, STARTX, STARTZ) or not house_area_validity:
+            print("House area not verified!")
+            build_area_size_x_current = build_area_size_x_current * 2
+            build_area_size_z_current = build_area_size_z_current * 2
+        else:
+            house_area_verified = True
 
     ### clear plot
     clear_plot(house_area, house_level, STARTY, ENDY)
