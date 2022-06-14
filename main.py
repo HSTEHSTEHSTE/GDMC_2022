@@ -10,7 +10,7 @@ import random
 ## Parameters
 build_area_size_x = 256
 build_area_size_z = 256
-time_limit = 300 #seconds
+time_limit = 600 #seconds
 house_weights = {
     'small': 7,
     'large': 3,
@@ -34,6 +34,7 @@ sea_map = get_geography_map(WORLDSLICE, STARTX, STARTZ)
 heights, height_lengths = group_heights(height_map, sea_map)
 height_common = max(height_lengths, key = height_lengths.get)
 height_map = WORLDSLICE.heightmaps['MOTION_BLOCKING_NO_LEAVES']
+height_map = np.where(sea_map == 0, height_map + 2, height_map)
 
 time_read_map = time.time()
 print("Map read: ", time_read_map - time_start)
@@ -85,13 +86,14 @@ while (time_house - time_start) < time_limit:
             house_weights[house_type] = 0
 
     house_id = random.choice(categories[house_type])
+    print(house_id)
     house_size = (sizes[house_id][0], sizes[house_id][1])
     # house_size = (sizes['grand_0'][0], sizes['grand_0'][1])
 
     ### locate house position
     flat_distance_score_map, _ = get_distance_score_map(sea_map, np.zeros(surface_map.shape), house_areas, [], STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 0)
     distance_score_map, distance_score_paths = get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ)
-    build_limits = np.where(flat_distance_score_map >= np.amax(np.asarray(house_size) * 2), distance_score_map, 9999999)
+    build_limits = np.where(flat_distance_score_map >= np.amax(np.asarray(house_size) * 2 + 10), distance_score_map, 9999999)
     build_score_map = build_limits + sea_build_cost * (np.ones(sea_map.shape) - sea_map) + abs(height_map - height_common) * 3
 
     next_building_location = np.unravel_index(build_score_map.argmin(), build_score_map.shape)
