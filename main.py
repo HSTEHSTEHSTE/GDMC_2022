@@ -9,8 +9,12 @@ import random
 
 
 ## Parameters
-build_area_size_x = 256
-build_area_size_z = 256
+STARTX = 0
+STARTY = 0
+STARTZ = 0
+ENDX = 0
+ENDY = 0
+ENDZ = 0
 time_limit = 600 #seconds
 house_weights = {
     'small': 7,
@@ -20,13 +24,18 @@ house_weights = {
 }
 house_type_limits = {
     'grand': 1,
-    'large': 2
+    'large': 2,
+    'starter': 2
 }
 
 
 ## begin
 time_start = time.time()
-STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(dx = build_area_size_x, dz = build_area_size_z)
+# INTF.setBuildArea(STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ)
+
+# build_area_size_x = 256
+# build_area_size_z = 256
+# STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ = INTF.requestPlayerArea(dx = build_area_size_x, dz = build_area_size_z)
 print("Build area: ", STARTX, STARTY, STARTZ, ENDX, ENDY, ENDZ)
 
 WORLDSLICE = WL.WorldSlice(STARTX, STARTZ, ENDX, ENDZ)
@@ -80,7 +89,6 @@ while (time_house - time_start) < time_limit:
 
     ### choose house type
     house_type = choose_house_type(house_weights)[0]
-    # house_type = 'grand'
     if house_type in house_type_limits:
         if house_type not in house_type_counter:
             house_type_counter[house_type] = 1
@@ -92,7 +100,7 @@ while (time_house - time_start) < time_limit:
     house_id = random.choice(categories[house_type])
     print(house_id)
     house_size = (sizes[house_id][0], sizes[house_id][1])
-    # house_size = (sizes['grand_0'][0], sizes['grand_0'][1])
+    # house_size = (sizes['1b_9'][0], sizes['1b_9'][1])
 
     ### locate house position
     house_area_valid = False
@@ -128,7 +136,7 @@ while (time_house - time_start) < time_limit:
 
     ### build house
     build_house(house_area, house_level, [0, 0], house_id)
-    # build_house(house_area, house_level, [0, 0], 'grand_0')
+    # build_house(house_area, house_level, [0, 0], '1b_9')
 
     ### update maps
     sea_map[house_area[0, 0] - STARTX:house_area[0, 1] + 1 - STARTX, house_area[1, 0] - STARTZ:house_area[1, 1] + 1 - STARTZ] = 1
