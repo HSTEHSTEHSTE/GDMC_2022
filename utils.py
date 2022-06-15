@@ -39,11 +39,11 @@ def pick_starting_location(height_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, heig
         z_start = random.randint(STARTZ, ENDZ)
         
         if time_now - time_start < 5:
-            if sea_map[x_start - STARTX, z_start - STARTZ] == 1 and height_common - height_map[x_start - STARTX, z_start - STARTZ] < (time_now - time_start) * 3:
+            if sea_map[x_start - STARTX, z_start - STARTZ] == 1 and height_common - height_map[x_start - STARTX, z_start - STARTZ] < time_now - time_start:
                 pick_location_success = True
                 y_start = height_map[x_start - STARTX, z_start - STARTZ]
         elif time_now - time_start < 10:
-            if sea_map[x_start - STARTX, z_start - STARTZ] == 1:
+            if sea_map[x_start - STARTX, z_start - STARTZ] == 1 and height_common - height_map[x_start - STARTX, z_start - STARTZ] < (time_now - time_start):
                 pick_location_success = True
                 y_start = height_map[x_start - STARTX, z_start - STARTZ]
         else:
@@ -164,13 +164,18 @@ def build_road(STARTX, STARTZ, ENDX, ENDZ, distance_score_paths, next_building_l
     return roads, height_map, house_areas_map
 
 
-def pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start, house_type = 'starter'):
+def pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, ENDX, ENDZ, x_start, y_start, z_start, house_type = 'starter', path = None, sea_build_cost = 100):
+
+    if path is not None:
+        for path_point in path:
+            sea_map[path_point[0] - STARTX, path_point[1] - STARTZ] -= 1
+
     convolution_array = np.ones(house_size)
     look_area = np.array([[max(STARTX, min(x_start - house_size[0] + 1, ENDX - house_size[0] + 1)), min(ENDX, max(x_start + house_size[0] - 1, STARTX + house_size[0] - 1))], [max(STARTZ, min(z_start - house_size[1] + 1, ENDZ - house_size[1] + 1)), min(ENDZ, max(z_start + house_size[1] - 1, STARTZ + house_size[1] - 1))]])
     look_area_height_map = height_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX + 1), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ + 1)]
     look_area_house_map = house_areas_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX + 1), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ + 1)]
     look_area_sea_map = sea_map[(look_area[0, 0] - STARTX):(look_area[0, 1] - STARTX + 1), (look_area[1, 0] - STARTZ):(look_area[1, 1] - STARTZ + 1)]
-    look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 10000 + (np.ones(look_area_sea_map.shape) - look_area_sea_map) * 100
+    look_area_height_map_gradient = np.abs(look_area_height_map - y_start) + look_area_house_map * 10000 + (np.ones(look_area_sea_map.shape) - look_area_sea_map) * sea_build_cost
 
     try:
         look_area_height_map_convolved = convolve2d(look_area_height_map_gradient, convolution_array, mode = 'valid')
@@ -184,13 +189,16 @@ def pick_plot(house_size, height_map, house_areas_map, sea_map, STARTX, STARTZ, 
     print(look_area)
     print('house area: ', house_area)
 
-    if house_type != 'grand':
+    # if house_type != 'grand':
+    if True:
         house_level = y_start
     else:
         house_level = np.amax(height_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1])
     house_level = max(house_level, 63)
 
-    return house_area, house_level
+    house_area_valid = not (np.any(house_areas_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1] > 0))
+
+    return house_area, house_level, house_area_valid
 
 
 def get_adjacent_points(point_x, point_z, STARTX, STARTZ, ENDX, ENDZ):
@@ -219,9 +227,9 @@ def get_path_cost(point_x, point_z, differential, edge_costs):
             return edge_costs[1][point_x, point_z - 1]
 
 
-def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1, edge_weight = 1):
+def get_distance_score_map(sea_map, surface_map, house_areas, house_areas_map, roads, STARTX, STARTZ, ENDX, ENDZ, seafaring_cost = 5, base_edge_cost = 1, edge_weight = 1, cost_cap = 99999999):
     ## score map
-    score_map = np.full(sea_map.shape, fill_value = -1)
+    score_map = np.full(sea_map.shape, fill_value = 99999999)
 
     ### get edge costs
     #### get sea edge costs
@@ -236,6 +244,7 @@ def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STA
     paths = {}
     #### initialise point stack
     point_stack = []
+    ##### drop some houses
     for house_area in house_areas:
         score_map[house_area[0, 0] - STARTX:house_area[0, 1] - STARTX + 1, house_area[1, 0] - STARTZ:house_area[1, 1] - STARTZ + 1] = 0
         #!! assumption: all buildings are rectangular
@@ -250,15 +259,18 @@ def get_distance_score_map(sea_map, surface_map, house_areas, roads, STARTX, STA
         score_map[road_point[0] - STARTX, road_point[1] - STARTZ] = 0
         point_stack.append((0, road_point[0], road_point[1], [(road_point[0], road_point[1])]))
     heapq.heapify(point_stack)
+    current_cost = 0
     #### pop from point stack
-    while len(point_stack) > 0:
+    while len(point_stack) > 0 and current_cost < cost_cap:
         next_point = heapq.heappop(point_stack)
         adjacent_point_list = np.asarray(get_adjacent_points(next_point[1], next_point[2], STARTX, STARTZ, ENDX, ENDZ))
         adjacent_point_differential = adjacent_point_list - np.array([next_point[1], next_point[2]])
         for adjacent_point_index, adjacent_point in enumerate(adjacent_point_list):
-            new_cost = get_path_cost(next_point[1] - STARTX, next_point[2] - STARTZ, adjacent_point_differential[adjacent_point_index], edge_costs) * edge_weight + base_edge_cost + next_point[0]
+            new_cost = get_path_cost(next_point[1] - STARTX, next_point[2] - STARTZ, adjacent_point_differential[adjacent_point_index], edge_costs) * edge_weight + base_edge_cost + next_point[0] + house_areas_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] * 10000
             
-            if score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] == -1 or score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] > new_cost:
+            ##### new cost is better than current cost
+            if score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] == 99999999 or score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ] > new_cost:
+                current_cost = new_cost
                 old_point = (score_map[adjacent_point[0] - STARTX, adjacent_point[1] - STARTZ], adjacent_point[0], adjacent_point[1], next_point[3])
                 new_point = (new_cost, adjacent_point[0], adjacent_point[1], next_point[3] + [(adjacent_point[0], adjacent_point[1])])
                 if old_point in point_stack:
@@ -286,8 +298,8 @@ def build_house(house_area, house_level, orientation, house_id):
 
     for block_key in blueprint:
         point_list = blueprint[block_key]
-        if house_id not in categories['grand'] or block_key != 'air[]':
-            GEO.placeFromList(point_list, block_key)
+        # if house_id not in categories['grand'] or block_key != 'air[]':
+        GEO.placeFromList(point_list, block_key)
 
 
 def group_heights(height_map, sea_map):
